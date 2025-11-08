@@ -52,12 +52,12 @@ cd deepface/backend
 
 ## 3. Install Semua Dependensi Backend
 ```
-pip install -r requirements.txt
+py -3.10 -m pip install -r requirements.txt 
 ```
 
 ## 4. Jalankan Server FastAPI
 ```
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+py -3.10 -m uvicorn backend.app:app --reload (jalankan di folder root)
 ```
 Server akan berjalan di http://localhost:8000
 
