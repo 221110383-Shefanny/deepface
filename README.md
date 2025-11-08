@@ -101,3 +101,4 @@ http://localhost:3000
 ---
 Jika ada kendala, cek error di terminal dan pastikan semua dependensi sudah terinstall dengan benar. 
 
+LINK FILE ZIP : https://mikroskilacid-my.sharepoint.com/:u:/g/personal/221110383_students_mikroskil_ac_id/EXgBcLRqJ_VLrGA1cTSWzrQB0YvCWQ585KDcirQH_lA3lA?e=c2oM19
