@@ -1,5 +1,5 @@
 import argparse
-import app
+import backend.app as app
 
 if __name__ == "__main__":
     deepface_app = app.create_app()
