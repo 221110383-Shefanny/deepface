@@ -36,7 +36,8 @@ function App() {
     formData.append("img2", image2);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/verify", {
+      const response = await fetch("/verify", {
+
         method: "POST",
         body: formData,
       });
@@ -97,5 +98,7 @@ function App() {
     </div>
   );
 }
+
+"proxy": "http://localhost:5000"
 
 export default App;

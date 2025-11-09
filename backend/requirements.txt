@@ -7,3 +7,4 @@ tensorflow
 retina-face
 numpy
 tensorflow
+tf-keras
