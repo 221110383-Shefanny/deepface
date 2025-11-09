@@ -39,10 +39,26 @@ jobs:
         push: true
         tags: ${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest
 
-test:
-  runs-on: ubuntu-latest
-  needs: build
+  test:
+    runs-on: ubuntu-latest
+    needs: build
 
-  steps:
-  - name: Skip tests (no tests yet)
-    run: echo "No tests implemented yet"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm install
+
+    - name: Run ESLint
+      working-directory: ./frontend
+      run: npx eslint src --ext .js,.jsx
+
+    - name: Skip backend tests (not implemented yet)
+      run: echo "No backend tests implemented yet"
