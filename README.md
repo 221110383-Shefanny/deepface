@@ -3,7 +3,6 @@
 Aplikasi web berbasis **FastAPI** dan **React** yang memungkinkan pengguna melakukan verifikasi wajah menggunakan teknologi **DeepFace**. 
 Sistem ini dirancang untuk memverifikasi identitas seseorang melalui pencocokan wajah secara otomatis menggunakan teknologi DeepFace.
 
-> 📌 *Catatan: tidak dilakukan deployment ke platform cloud. Semua fungsi dijalankan secara lokal untuk keperluan pengujian dan dokumentasi.*
 
 ---
 
