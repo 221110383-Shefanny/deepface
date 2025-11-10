@@ -6,7 +6,8 @@ Sistem ini dirancang untuk memverifikasi identitas seseorang melalui pencocokan 
 
 ---
 
-## 👥 Anggota Kelompok
+## 👥 Anggota Kelompok 
+(NB : hanya untuk mata kuliah Machine Learning)
 
 | Nama Lengkap              | NIM       |
 |---------------------------|-----------|
