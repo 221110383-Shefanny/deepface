@@ -36,7 +36,8 @@ jobs:
 
     - name: Run PyTest
       working-directory: ./backend
-      run: pytest tests/ -v --cov=. --cov-report=xml 2>/dev/null || echo "Note: No tests found, proceeding..."
+      run: |
+        python -m pytest tests/ -v --cov=. --cov-report=xml || echo "No tests found, proceeding..."
 
     - name: Lint with flake8
       working-directory: ./backend
