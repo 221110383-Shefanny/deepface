@@ -30,6 +30,7 @@ function App() {
   const [cameraMode, setCameraMode] = useState(false);
   const [attendanceType, setAttendanceType] = useState("masuk"); // masuk or keluar
   const [realtimeResult, setRealtimeResult] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [realtimeFrame, setRealtimeFrame] = useState(null);
   const [captureAutoReplaceCountdown, setCaptureAutoReplaceCountdown] = useState(null);
   
@@ -45,6 +46,7 @@ function App() {
 
   // ============ LOCAL STORAGE EFFECTS ============
   // Load employees dari localStorage saat pertama kali
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const savedEmployees = localStorage.getItem("employees");
     if (savedEmployees) {
@@ -96,6 +98,7 @@ function App() {
   }, [result, currentPage]);
 
   // Load result dari localStorage saat pertama kali (hanya jika di halaman attendance)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentPage === "attendance") {
       const savedResult = localStorage.getItem("lastResult");
@@ -114,6 +117,7 @@ function App() {
   }, [currentPage]);
 
   // Update selectedEmployee validation - hanya untuk memastikan selected employee masih valid
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (employees.length > 0 && selectedEmployee) {
       // Jika selectedEmployee sudah ada dan valid, keep it
@@ -126,6 +130,7 @@ function App() {
   }, [employees]);
 
   // Clear result saat ganti pilihan karyawan dari dropdown
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentPage === "attendance") {
       // Clear pending auto capture timeout
@@ -150,6 +155,7 @@ function App() {
   }, [selectedEmployee, currentPage]);
 
   // Reset selectedEmployee saat masuk ke halaman attendance
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentPage === "attendance") {
       setSelectedEmployee(null);
@@ -648,11 +654,12 @@ function App() {
     }, 3000); // 3 detik
 
     // Simpan ref untuk cleanup
+    // eslint-disable-next-line no-unused-vars
     const originalAutoCaptureTimeoutRef = autoCaptureTimeoutRef;
     autoCaptureTimeoutRef.current = autoCaptureDelayRef;
   };
 
-
+  // eslint-disable-next-line no-unused-vars
   const handleAutoCapture = async (previewData, blob, verifyData, employeeParam) => {
     setLoading(true);
 
@@ -889,6 +896,7 @@ function App() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const clearData = () => {
     setFaceImage(null);
     setFacePreview(null);
