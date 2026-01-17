@@ -2,9 +2,9 @@ name: Docker CI/CD Pipeline
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: [ "master", "main", "pwen" ]
   pull_request:
-    branches: [ "master", "main" ]
+    branches: [ "master", "main", "pwen" ]
   workflow_dispatch:
 
 env:
