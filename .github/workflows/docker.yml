@@ -161,11 +161,15 @@ jobs:
         echo "✅ Frontend image verified"
 
     - name: Setup kubeconfig
-      if: ${{ secrets.KUBE_CONFIG != '' }}
       run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
-        chmod 600 $HOME/.kube/config
+        if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+        else
+          echo "⚠️ KUBE_CONFIG secret is missing or empty. Skipping kubeconfig setup."
+        fi
+
 
 
     - name: Deploy to Kubernetes
