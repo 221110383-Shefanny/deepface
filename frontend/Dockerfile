@@ -1,24 +1,22 @@
-# Gunakan image resmi Node.js versi stabil
-FROM node:18
-
-# Set direktori kerja di dalam container
+# Stage 1: Build React app
+FROM node:18 AS build
 WORKDIR /app
 
-# Salin file dependency terlebih dahulu
+# Copy package files first
 COPY package.json package-lock.json ./
 
-# Install semua dependency termasuk react-scripts dan tampilkan hasilnya
-RUN npm install && \
-    echo "📦 Installed node_modules:" && \
-    ls node_modules && \
-    echo "🔍 Checking react-scripts:" && \
-    ls node_modules/react-scripts
+# Install dependencies with verbose logging
+RUN npm ci --verbose || npm install --verbose
 
-# Salin seluruh kode aplikasi frontend
-COPY . .
+# Copy source code
+COPY src ./src
+COPY public ./public
 
-# Buka port 3000 untuk akses React
-EXPOSE 3000
+# Build React app
+RUN npm run build
 
-# Jalankan aplikasi React
-CMD ["npm", "start"]
+# Stage 2: Serve with Nginx
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

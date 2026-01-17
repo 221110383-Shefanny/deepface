@@ -1,0 +1,187 @@
+---
+# Horizontal Pod Autoscaler untuk Backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: deepface-backend-hpa
+  namespace: default
+  labels:
+    app: deepface-backend
+    component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: deepface-backend
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 1
+        periodSeconds: 15
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 15
+      selectPolicy: Max
+
+---
+# Horizontal Pod Autoscaler untuk Frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: deepface-frontend-hpa
+  namespace: default
+  labels:
+    app: deepface-frontend
+    component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: deepface-frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 1
+        periodSeconds: 15
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 15
+      selectPolicy: Max
+
+---
+# HPA dengan Custom Metrics (Optional - requires metrics-server)
+# Uncomment jika ingin menggunakan custom metrics
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: deepface-backend-hpa-custom
+#   namespace: default
+# spec:
+#   scaleTargetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: deepface-backend
+#   minReplicas: 2
+#   maxReplicas: 6
+#   metrics:
+#   - type: Pods
+#     pods:
+#       metric:
+#         name: http_requests_per_second
+#       target:
+#         type: AverageValue
+#         averageValue: "1000"
+
+---
+# PodDisruptionBudget untuk Backend - mencegah terlalu banyak pod yang di-terminate sekaligus
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: deepface-backend-pdb
+  namespace: default
+  labels:
+    app: deepface-backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: deepface-backend
+
+---
+# PodDisruptionBudget untuk Frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: deepface-frontend-pdb
+  namespace: default
+  labels:
+    app: deepface-frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: deepface-frontend
+
+---
+# VerticalPodAutoscaler (Optional - requires VPA to be installed)
+# VPA untuk right-sizing resource requests/limits berdasarkan actual usage
+# apiVersion: autoscaling.k8s.io/v1
+# kind: VerticalPodAutoscaler
+# metadata:
+#   name: deepface-backend-vpa
+#   namespace: default
+# spec:
+#   targetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: deepface-backend
+#   updatePolicy:
+#     updateMode: "Auto"
+#   resourcePolicy:
+#     containerPolicies:
+#     - containerName: backend
+#       minAllowed:
+#         cpu: 100m
+#         memory: 128Mi
+#       maxAllowed:
+#         cpu: 2
+#         memory: 4Gi
+#       controlledResources: ["cpu", "memory"]

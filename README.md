@@ -37,6 +37,43 @@ Sistem ini dirancang untuk memverifikasi identitas seseorang melalui pencocokan 
 
 ---
 
+# 🚀 Quick Start - Jalankan Aplikasi
+
+## Option 1: Menggunakan Docker Compose (Recommended) ⭐
+
+Paling mudah dan tidak perlu install banyak dependencies.
+
+```bash
+cd d:\MIKROSKIL\OPERASI\deepface
+docker-compose up
+```
+
+Aplikasi akan berjalan di:
+- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:5000
+
+## Option 2: Menjalankan Manual (Local)
+
+### Backend:
+```bash
+cd d:\MIKROSKIL\OPERASI\deepface\backend
+pip install -r requirements.txt
+python app.py
+```
+
+Backend berjalan di: `http://localhost:5000`
+
+### Frontend (Buka terminal baru):
+```bash
+cd d:\MIKROSKIL\OPERASI\deepface\frontend
+npm install
+npm start
+```
+
+Frontend berjalan di: `http://localhost:3000`
+
+---
+
 # Petunjuk Instalasi & Menjalankan Proyek DeepFace Secara Lokal
 
 ## 1. Clone Repository
@@ -89,16 +126,88 @@ npm start
 http://localhost:3000
 ```
 
-## 7. Troubleshooting
-- **Python version:** Gunakan Python 3.10 (bukan 3.14) agar kompatibel dengan deepface & tensorflow.
-- **Error tensorflow/deepface:** Pastikan versi Python dan dependensi sudah sesuai.
-- **CORS error:** Pastikan backend mengaktifkan CORS (sudah diatur di app.py).
-- **Port bentrok:** Jika port 8000/3000 sudah dipakai, ganti dengan port lain di perintah uvicorn/npm start.
-- **File __pycache__:** Folder ini bisa diabaikan/dihapus, tidak mempengaruhi source code.
 
-## 8. Catatan Penggunaan API
-- Endpoint utama: `/verify` (POST, upload dua gambar dengan key `img1_path` dan `img2_path`)
 ---
-Jika ada kendala, cek error di terminal dan pastikan semua dependensi sudah terinstall dengan benar. 
 
-LINK FILE ZIP : https://mikroskilacid-my.sharepoint.com/:u:/g/personal/221110383_students_mikroskil_ac_id/EXgBcLRqJ_VLrGA1cTSWzrQB0YvCWQ585KDcirQH_lA3lA?e=c2oM19
+## Troubleshooting
+
+Jika mengalami masalah, lihat file **`TROUBLESHOOTING.md`** untuk panduan lengkap.
+
+### Common Issues:
+
+| Problem | Solution |
+|---------|----------|
+| "Cannot reach backend" | Pastikan backend berjalan di port 5000 |
+| "Foto karyawan tidak ditemukan" | Tambahkan data karyawan terlebih dahulu di halaman "Input Data Karyawan" |
+| "No face detected" | Foto harus menunjukkan wajah dengan jelas, pencahayaan cukup |
+| "Model not found" | Tunggu proses download model (pertama kali ~5-10 menit) |
+| Python version error | Gunakan Python 3.10+ untuk kompatibilitas |
+| CORS error | CORS sudah dikonfigurasi di `app.py` - restart backend jika belum terdeteksi |
+| Port sudah dipakai | Ganti port di `docker-compose.yml` atau command line |
+
+---
+
+## API Endpoints
+
+### 1. Verify (Verifikasi Wajah)
+```
+POST /verify
+Content-Type: multipart/form-data
+
+Parameters:
+- img1: File (foto database/karyawan)
+- img2: File (foto attendance/kamera)
+- model_name: str (default: "Facenet512")
+- detector_backend: str (default: "retinaface")
+
+Response:
+{
+  "verified": true/false,
+  "distance": 0.45,
+  "threshold": 0.6,
+  "model": "Facenet512",
+  "detector_backend": "retinaface",
+  ...
+}
+```
+
+### 2. Health Check
+```
+GET /health
+
+Response:
+{
+  "status": "ok",
+  "message": "Backend is running",
+  "deepface_available": true
+}
+```
+
+---
+
+## File Structure
+
+```
+deepface/
+├── backend/
+│   ├── app.py                 # Main FastAPI application
+│   ├── routes.py              # API routes (/verify, /represent, /health)
+│   ├── requirements.txt        # Python dependencies
+│   ├── Dockerfile             # Docker configuration
+│   └── __pycache__/
+├── frontend/
+│   ├── src/
+│   │   ├── App.js             # Main React component
+│   │   ├── App.css            # Styles
+│   │   └── index.js           # Entry point
+│   ├── public/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── node_modules/
+├── docker-compose.yml         # Docker Compose configuration
+├── README.md                  # This file
+├── TROUBLESHOOTING.md         # Detailed troubleshooting guide
+└── evalusasi.ipynb            # Evaluation notebook
+```
+
+---

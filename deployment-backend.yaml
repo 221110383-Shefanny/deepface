@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepface-backend
+  namespace: default
+  labels:
+    app: deepface-backend
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: deepface-backend
+  template:
+    metadata:
+      labels:
+        app: deepface-backend
+        version: v1
+    spec:
+      containers:
+      - name: backend
+        image: shefanny00/deepface-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: FLASK_ENV
+          value: "production"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "5000"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: model-cache
+          mountPath: /root/.deepface
+        - name: tmp-storage
+          mountPath: /tmp
+      volumes:
+      - name: model-cache
+        emptyDir: {}
+      - name: tmp-storage
+        emptyDir: {}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepface-backend-service
+  namespace: default
+  labels:
+    app: deepface-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: deepface-backend
+  ports:
+  - name: http
+    port: 5000
+    targetPort: 5000
+    protocol: TCP
+  sessionAffinity: None
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: deepface-backend-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: deepface-backend
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deepface-backend-config
+  namespace: default
+  labels:
+    app: deepface-backend
+data:
+  deepface_config.py: |
+    # DeepFace Configuration
+    ALLOWED_MODELS = ["VGG-Face", "Facenet", "OpenFace", "DeepFace", "DeepID", "ArcFace", "Dlib"]
+    DEFAULT_MODEL = "VGG-Face"
+    
+    # Performance settings
+    ENFORCE_DETECTION = True
+    ALIGN = True
+    
+    # API settings
+    MAX_FILE_SIZE = 52428800  # 50MB
+    UPLOAD_FOLDER = "/tmp/uploads"
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "bmp"}

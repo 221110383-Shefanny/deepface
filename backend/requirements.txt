@@ -6,5 +6,5 @@ opencv-python
 tensorflow
 retina-face
 numpy
-tensorflow
 tf-keras
+psutil
