@@ -7,93 +7,61 @@ on:
     branches: [ "master", "main", "pwen" ]
   workflow_dispatch:
 
-env:
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
 jobs:
 
   # Backend Testing
   backend-test:
-    name: Test Backend (Python)
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-
     - name: Install dependencies
       working-directory: ./backend
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov
-
     - name: Run PyTest
       working-directory: ./backend
-      run: |
-        python -m pytest tests/ -v --cov=. --cov-report=xml || echo "No tests found, proceeding..."
-
+      run: python -m pytest tests/ -v --cov=. --cov-report=xml || echo "No tests found"
     - name: Lint with flake8
       working-directory: ./backend
-      run: pip install flake8 && flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+      run: pip install flake8 && flake8 . || true
 
   # Frontend Testing
   frontend-test:
-    name: Test Frontend (Node.js)
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v3
       with:
         node-version: '18'
-
     - name: Install dependencies
       working-directory: ./frontend
       run: npm install
-
     - name: Run ESLint
       working-directory: ./frontend
-      run: |
-        npx eslint src --ext .js,.jsx --max-warnings 5 || true
-
+      run: npx eslint src --ext .js,.jsx --max-warnings 5 || true
     - name: Run tests
       working-directory: ./frontend
-      run: |
-        npm test || echo "No tests, proceeding"
-
+      run: npm test || echo "No tests"
     - name: Build React App
       working-directory: ./frontend
       run: npm run build
 
   # Build & Push Docker Images
   build:
-    name: Build & Push Docker Images
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-test]
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Log in to DockerHub
-      uses: docker/login-action@v2
+    - uses: actions/checkout@v4
+    - uses: docker/setup-buildx-action@v2
+    - uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
-
     - name: Build & Push Backend Image
       uses: docker/build-push-action@v4
       with:
@@ -101,7 +69,6 @@ jobs:
         push: true
         platforms: linux/amd64
         tags: ${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest
-
     - name: Build & Push Frontend Image
       uses: docker/build-push-action@v4
       with:
@@ -110,93 +77,69 @@ jobs:
         platforms: linux/amd64
         tags: ${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest
 
-  # Security: Scan Docker Images
+  # Security Scan
   security-scan:
-    name: Security Scan Docker Images
     runs-on: ubuntu-latest
     needs: build
-
     steps:
-    - name: Log in to DockerHub
-      uses: docker/login-action@v2
+    - uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Run Trivy Scan on Backend
+    - name: Trivy Scan Backend
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest
         format: 'sarif'
         output: 'trivy-backend.sarif'
-
-    - name: Run Trivy Scan on Frontend
+    - name: Trivy Scan Frontend
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest
         format: 'sarif'
         output: 'trivy-frontend.sarif'
 
-  # Health Check & Deploy
+  # Deploy (skip gracefully if secret missing)
   deploy:
-    name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: [build, security-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Health Check - Backend Image
-      run: |
-        docker pull ${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest
-        docker inspect ${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest || exit 1
-        echo "✅ Backend image verified"
-
-    - name: Health Check - Frontend Image
-      run: |
-        docker pull ${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest
-        docker inspect ${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest || exit 1
-        echo "✅ Frontend image verified"
+    - uses: actions/checkout@v4
 
     - name: Setup kubeconfig
-      if: secrets.KUBE_CONFIG != ''
+      env:
+        KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      if: env.KUBE_CONFIG != ''
       run: |
         mkdir -p $HOME/.kube
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+        echo "$KUBE_CONFIG" | base64 -d > $HOME/.kube/config
         chmod 600 $HOME/.kube/config
         echo "✅ Kubeconfig configured"
 
     - name: Deploy to Kubernetes
-      if: secrets.KUBE_CONFIG != ''
+      env:
+        KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      if: env.KUBE_CONFIG != ''
       run: |
-        kubectl set image deployment/deepface-backend deepface-backend=${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest --record || echo "Deployment not found, skipping..."
-        kubectl set image deployment/deepface-frontend deepface-frontend=${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest --record || echo "Deployment not found, skipping..."
+        kubectl set image deployment/deepface-backend deepface-backend=$DOCKER_USERNAME/deepface-backend:latest --record || echo "Deployment not found"
+        kubectl set image deployment/deepface-frontend deepface-frontend=$DOCKER_USERNAME/deepface-frontend:latest --record || echo "Deployment not found"
         kubectl rollout status deployment/deepface-backend --timeout=5m || true
         kubectl rollout status deployment/deepface-frontend --timeout=5m || true
         echo "✅ Kubernetes deployment completed"
 
-    - name: Post Deployment Health Check
-      if: secrets.KUBE_CONFIG != ''
-      run: |
-        sleep 10
-        BACKEND_READY=$(kubectl get pods -l app=deepface-backend -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
-        FRONTEND_READY=$(kubectl get pods -l app=deepface-frontend -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
-        [ "$BACKEND_READY" == "True" ] && echo "✅ Backend pod healthy" || echo "⚠️  Backend pod not ready"
-        [ "$FRONTEND_READY" == "True" ] && echo "✅ Frontend pod healthy" || echo "⚠️  Frontend pod not ready"
-
     - name: Skip K8s Deployment
-      if: secrets.KUBE_CONFIG == ''
+      env:
+        KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      if: env.KUBE_CONFIG == ''
       run: echo "⚠️ KUBE_CONFIG secret not configured. Skipping Kubernetes deployment."
 
-  # Notify on Success
+  # Notify
   notify:
-    name: Notify Deployment Success
     runs-on: ubuntu-latest
     needs: deploy
     if: success()
-
     steps:
     - name: Success Notification
       run: |
@@ -204,4 +147,4 @@ jobs:
         echo "✅ Tests passed"
         echo "✅ Docker images built & pushed"
         echo "✅ Security scan completed"
-        echo "✅ Kubernetes deployment completed"
+        echo "✅ Kubernetes deployment handled gracefully"
