@@ -25,6 +25,7 @@ function App() {
   const [faceImage, setFaceImage] = useState(null);
   const [facePreview, setFacePreview] = useState(null);
   const [result, setResult] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [loading, setLoading] = useState(false);
   const [attendanceLog, setAttendanceLog] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null); // Will be set to first employee when loaded
@@ -892,6 +893,7 @@ function App() {
     setCameraMode(false);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleVerify = async () => {
     if (!faceImage) {
       alert("Silakan pilih atau ambil foto terlebih dahulu!");
