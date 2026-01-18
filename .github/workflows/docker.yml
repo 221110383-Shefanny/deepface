@@ -142,7 +142,7 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: [build, security-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && secrets.KUBE_CONFIG != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
     - name: Checkout code
@@ -161,38 +161,34 @@ jobs:
         echo "✅ Frontend image verified"
 
     - name: Setup kubeconfig
+      if: secrets.KUBE_CONFIG != ''
       run: |
-        if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
-        else
-          echo "⚠️ KUBE_CONFIG secret is missing or empty. Skipping kubeconfig setup."
-        fi
-
-
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+        echo "✅ Kubeconfig configured"
 
     - name: Deploy to Kubernetes
+      if: secrets.KUBE_CONFIG != ''
       run: |
-        if [ -f "$HOME/.kube/config" ]; then
-          kubectl set image deployment/deepface-backend deepface-backend=${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest --record || echo "Deployment not found, skipping..."
-          kubectl set image deployment/deepface-frontend deepface-frontend=${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest --record || echo "Deployment not found, skipping..."
-          kubectl rollout status deployment/deepface-backend --timeout=5m || true
-          kubectl rollout status deployment/deepface-frontend --timeout=5m || true
-          echo "✅ Kubernetes deployment completed"
-        else
-          echo "⚠️  Skipping K8s deployment: KUBE_CONFIG not configured"
-        fi
+        kubectl set image deployment/deepface-backend deepface-backend=${{ secrets.DOCKER_USERNAME }}/deepface-backend:latest --record || echo "Deployment not found, skipping..."
+        kubectl set image deployment/deepface-frontend deepface-frontend=${{ secrets.DOCKER_USERNAME }}/deepface-frontend:latest --record || echo "Deployment not found, skipping..."
+        kubectl rollout status deployment/deepface-backend --timeout=5m || true
+        kubectl rollout status deployment/deepface-frontend --timeout=5m || true
+        echo "✅ Kubernetes deployment completed"
 
     - name: Post Deployment Health Check
+      if: secrets.KUBE_CONFIG != ''
       run: |
-        if [ -f "$HOME/.kube/config" ]; then
-          sleep 10
-          BACKEND_READY=$(kubectl get pods -l app=deepface-backend -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
-          FRONTEND_READY=$(kubectl get pods -l app=deepface-frontend -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
-          [ "$BACKEND_READY" == "True" ] && echo "✅ Backend pod healthy" || echo "⚠️  Backend pod not ready"
-          [ "$FRONTEND_READY" == "True" ] && echo "✅ Frontend pod healthy" || echo "⚠️  Frontend pod not ready"
-        fi
+        sleep 10
+        BACKEND_READY=$(kubectl get pods -l app=deepface-backend -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
+        FRONTEND_READY=$(kubectl get pods -l app=deepface-frontend -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
+        [ "$BACKEND_READY" == "True" ] && echo "✅ Backend pod healthy" || echo "⚠️  Backend pod not ready"
+        [ "$FRONTEND_READY" == "True" ] && echo "✅ Frontend pod healthy" || echo "⚠️  Frontend pod not ready"
+
+    - name: Skip K8s Deployment
+      if: secrets.KUBE_CONFIG == ''
+      run: echo "⚠️ KUBE_CONFIG secret not configured. Skipping Kubernetes deployment."
 
   # Notify on Success
   notify:
