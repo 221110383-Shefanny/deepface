@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-test-frontend
+  namespace: default
+spec:
+  containers:
+  - name: load-generator
+    image: curlimages/curl:latest
+    command:
+    - sh
+    - -c
+    - |
+      echo "🚀 Starting Frontend Load Test..."
+      echo "Target: http://deepface-frontend-service"
+      echo "Duration: 5 minutes"
+      echo ""
+      
+      COUNT=0
+      while [ $COUNT -lt 300 ]; do
+        curl -s http://deepface-frontend-service/ > /dev/null 2>&1 &
+        COUNT=$((COUNT + 1))
+        if [ $((COUNT % 50)) -eq 0 ]; then
+          echo "[$(date +'%H:%M:%S')] Sent $COUNT requests..."
+        fi
+        sleep 1
+      done
+      
+      echo "✅ Frontend load test completed!"
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 10
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-test-backend
+  namespace: default
+spec:
+  containers:
+  - name: load-generator
+    image: curlimages/curl:latest
+    command:
+    - sh
+    - -c
+    - |
+      echo "🚀 Starting Backend Load Test..."
+      echo "Target: http://deepface-backend-service:5000/health"
+      echo "Duration: 5 minutes"
+      echo ""
+      
+      COUNT=0
+      while [ $COUNT -lt 300 ]; do
+        curl -s http://deepface-backend-service:5000/health > /dev/null 2>&1 &
+        COUNT=$((COUNT + 1))
+        if [ $((COUNT % 50)) -eq 0 ]; then
+          echo "[$(date +'%H:%M:%S')] Sent $COUNT requests..."
+        fi
+        sleep 1
+      done
+      
+      echo "✅ Backend load test completed!"
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 10
