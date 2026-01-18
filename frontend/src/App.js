@@ -1415,13 +1415,6 @@ function App() {
 
           {/* Buttons */}
           <div className="action-buttons">
-            {/* <button
-              className="btn btn-primary"
-              onClick={handleVerify}
-              disabled={loading || !faceImage}
-            >
-              {loading ? "⏳ Memproses..." : "✓ Verifikasi Wajah"}
-            </button> */}
             <button className="btn btn-secondary" onClick={() => {
               // Hanya clear input, tidak clear result
               setFaceImage(null);
