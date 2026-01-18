@@ -1,0 +1,36 @@
+# CPU-Only Backend Image
+# Clean TensorFlow/PyTorch configuration without GPU/CUDA
+FROM python:3.10
+
+WORKDIR /app
+
+# Install system dependencies for OpenCV
+RUN apt-get update && apt-get install -y \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libglib2.0-0 \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python packages (TensorFlow CPU-only)
+RUN pip install --no-cache-dir \
+    tensorflow==2.15.0 \
+    requests \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Set environment for CPU-only
+ENV CUDA_VISIBLE_DEVICES=""
+ENV TF_CPP_MIN_LOG_LEVEL=2
+
+# Expose port
+EXPOSE 5000
+
+# Run application
+CMD ["python", "main.py"]

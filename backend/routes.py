@@ -15,10 +15,11 @@ async def verify(
     model_name: str = "Facenet512",
     detector_backend: str = "retinaface",
     distance_metric: str = "cosine",
-    enforce_detection: bool = True,
+    enforce_detection: bool = False,
     align: bool = True,
     normalization: str = "base",
-    anti_spoofing: bool = False
+    anti_spoofing: bool = False,
+    threshold: str = None  # Custom threshold - akan override default (dikirim sebagai string dari FormData)
 ):
     img1_path = None
     img2_path = None
@@ -44,21 +45,55 @@ async def verify(
         print(f"✅ File saved: {img1_path} ({os.path.getsize(img1_path)} bytes)")
         print(f"✅ File saved: {img2_path} ({os.path.getsize(img2_path)} bytes)")
 
-        print(f"🔄 Starting verification with model={model_name}, backend={detector_backend}")
+        print(f"\n🔄 Starting verification with parameters:")
+        print(f"   - Model: {model_name}")
+        print(f"   - Detector Backend: {detector_backend}")
+        print(f"   - Distance Metric: {distance_metric}")
+        print(f"   - Enforce Detection: {enforce_detection}")
+        print(f"   - Align: {align}")
+        print(f"   - Normalization: {normalization}")
+        print(f"   - Anti-spoofing: {anti_spoofing}")
+        print(f"   - Custom Threshold (raw): {threshold}")
         
-        result = DeepFace.verify(
-            img1_path=img1_path,
-            img2_path=img2_path,
-            model_name=model_name,
-            detector_backend=detector_backend,
-            distance_metric=distance_metric,
-            enforce_detection=enforce_detection,
-            align=align,
-            normalization=normalization,
-            anti_spoofing=anti_spoofing
-        )
+        # Convert threshold string to float jika ada
+        threshold_float = None
+        if threshold is not None:
+            try:
+                threshold_float = float(threshold)
+                print(f"   - Converted Threshold: {threshold_float}")
+            except (ValueError, TypeError):
+                print(f"   - ⚠️ Failed to convert threshold '{threshold}' to float, will use default")
+                threshold_float = None
+        
+        # Prepare verify kwargs
+        verify_kwargs = {
+            "img1_path": img1_path,
+            "img2_path": img2_path,
+            "model_name": model_name,
+            "detector_backend": detector_backend,
+            "distance_metric": distance_metric,
+            "enforce_detection": enforce_detection,
+            "align": align,
+            "normalization": normalization,
+            "anti_spoofing": anti_spoofing
+        }
+        
+        # Add custom threshold if successfully converted
+        if threshold_float is not None:
+            verify_kwargs["threshold"] = threshold_float
+            print(f"   - Using custom threshold: {threshold_float}")
+        else:
+            print(f"   - Using DeepFace default threshold")
+        
+        result = DeepFace.verify(**verify_kwargs)
 
-        print(f"✅ Verification successful: {result}")
+        print(f"\n✅ Verification successful!")
+        print(f"   - Verified: {result.get('verified', False)}")
+        print(f"   - Distance: {result.get('distance', 'N/A')}")
+        print(f"   - Threshold: {result.get('threshold', 'N/A')}")
+        print(f"   - Model Used: {result.get('model', 'N/A')}")
+        print(f"   - Detector Backend: {result.get('detector_backend', 'N/A')}")
+        print(f"   - Distance Metric: {result.get('distance_metric', 'N/A')}\n")
 
         # Clean up
         if os.path.exists(img1_path):

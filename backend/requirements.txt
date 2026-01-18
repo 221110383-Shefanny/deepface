@@ -3,7 +3,7 @@ uvicorn
 deepface
 python-multipart
 opencv-python
-tensorflow
+tensorflow==2.15.0
 retina-face
 numpy
 tf-keras

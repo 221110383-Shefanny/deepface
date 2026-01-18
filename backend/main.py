@@ -3,6 +3,9 @@ FastAPI Main Application
 Deepface Face Verification Backend Server
 """
 
+# ⚠️ IMPORTANT: Import config first to set environment variables before TensorFlow/PyTorch loads
+import config  # Force CPU-only mode and suppress GPU errors
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

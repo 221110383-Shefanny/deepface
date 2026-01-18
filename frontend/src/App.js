@@ -46,6 +46,53 @@ function App() {
   const autoCaptureTimeoutRef = useRef(null); // Track timeout untuk auto close camera
 
   // ============ LOCAL STORAGE EFFECTS ============
+  // One-time cleanup: remove corrupted data with photos from localStorage on app start
+  useEffect(() => {
+    console.log("🔍 Performing startup cleanup of localStorage...");
+    
+    // Clean attendanceLog
+    const savedLog = localStorage.getItem("attendanceLog");
+    if (savedLog) {
+      try {
+        let log = JSON.parse(savedLog);
+        let hadPhotos = false;
+        
+        // Check for photos and remove them
+        log = log.map(record => {
+          if (record.attendancePhoto || record.databasePhoto) {
+            hadPhotos = true;
+          }
+          const { attendancePhoto, databasePhoto, ...clean } = record;
+          return clean;
+        });
+        
+        if (hadPhotos) {
+          console.log("✅ Cleaned attendance log - removed photo data");
+          localStorage.setItem("attendanceLog", JSON.stringify(log));
+        }
+      } catch (err) {
+        console.warn("⚠️ Could not parse attendance log, resetting...");
+        localStorage.removeItem("attendanceLog");
+      }
+    }
+    
+    // Clean lastResult
+    const savedResult = localStorage.getItem("lastResult");
+    if (savedResult) {
+      try {
+        let result = JSON.parse(savedResult);
+        if (result.attendancePhoto || result.databasePhoto) {
+          console.log("✅ Cleaned last result - removed photo data");
+          const { attendancePhoto, databasePhoto, ...clean } = result;
+          localStorage.setItem("lastResult", JSON.stringify(clean));
+        }
+      } catch (err) {
+        console.warn("⚠️ Could not parse last result, removing...");
+        localStorage.removeItem("lastResult");
+      }
+    }
+  }, []); // Run only once on mount
+
   // Load employees dari localStorage saat pertama kali
   useEffect(() => {
     const savedEmployees = localStorage.getItem("employees");
@@ -75,7 +122,27 @@ function App() {
     const savedLog = localStorage.getItem("attendanceLog");
     if (savedLog) {
       try {
-        setAttendanceLog(JSON.parse(savedLog));
+        let loadedLog = JSON.parse(savedLog);
+        let hasPhotos = false;
+        
+        // Clean up old records that might have photos - migrate to new format
+        loadedLog = loadedLog.map(record => {
+          // Check if photos exist
+          if (record.attendancePhoto || record.databasePhoto) {
+            hasPhotos = true;
+          }
+          // Remove photos if they exist (for old data compatibility)
+          const { attendancePhoto, databasePhoto, ...cleanRecord } = record;
+          return cleanRecord;
+        });
+        
+        // If we found photos, immediately save cleaned version to localStorage
+        if (hasPhotos) {
+          console.log("🧹 Detected old data with photos - cleaning and saving...");
+          localStorage.setItem("attendanceLog", JSON.stringify(loadedLog));
+        }
+        
+        setAttendanceLog(loadedLog);
       } catch (err) {
         console.error("Error loading attendance log:", err);
         setAttendanceLog([]);
@@ -86,14 +153,36 @@ function App() {
   // Save attendance log ke localStorage setiap kali berubah
   useEffect(() => {
     if (attendanceLog.length > 0) {
-      localStorage.setItem("attendanceLog", JSON.stringify(attendanceLog));
+      // Safeguard: remove any photos that might accidentally be in records
+      const cleanLog = attendanceLog.map(record => {
+        const { attendancePhoto, databasePhoto, ...cleanRecord } = record;
+        return cleanRecord;
+      });
+      
+      // Add size check before saving
+      const jsonString = JSON.stringify(cleanLog);
+      const sizeInBytes = new Blob([jsonString]).size;
+      
+      if (sizeInBytes > 1000000) { // 1MB limit as safeguard
+        console.warn(`⚠️ Attendance log too large (${(sizeInBytes/1024/1024).toFixed(2)}MB). Keeping only recent 10 records.`);
+        const recentLog = cleanLog.slice(0, 10);
+        localStorage.setItem("attendanceLog", JSON.stringify(recentLog));
+      } else {
+        localStorage.setItem("attendanceLog", JSON.stringify(cleanLog));
+      }
     }
   }, [attendanceLog]);
 
   // Save result ke localStorage setiap kali berubah (hanya saat di halaman attendance)
   useEffect(() => {
     if (result && currentPage === "attendance") {
-      localStorage.setItem("lastResult", JSON.stringify(result));
+      // Jangan simpan photo ke localStorage - simpan hanya metadata
+      const resultToSave = {
+        ...result,
+        attendancePhoto: undefined,
+        databasePhoto: undefined,
+      };
+      localStorage.setItem("lastResult", JSON.stringify(resultToSave));
     }
   }, [result, currentPage]);
 
@@ -103,7 +192,14 @@ function App() {
       const savedResult = localStorage.getItem("lastResult");
       if (savedResult) {
         try {
-          setResult(JSON.parse(savedResult));
+          const result = JSON.parse(savedResult);
+          // Try to restore photos from in-memory storage
+          if (result.id && attendancePhotosRef.current[result.id]) {
+            const inMemoryPhotos = attendancePhotosRef.current[result.id];
+            result.attendancePhoto = inMemoryPhotos.attendancePhoto;
+            result.databasePhoto = inMemoryPhotos.databasePhoto;
+          }
+          setResult(result);
         } catch (err) {
           console.error("Error loading result:", err);
         }
@@ -249,9 +345,21 @@ function App() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFaceImage(file);
-      setFacePreview(URL.createObjectURL(file));
-      setResult(null);
+      // Convert file to data URL (base64) untuk preview yang persist
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target.result;
+        setFaceImage(file); // Tetap simpan file object untuk upload ke server
+        setFacePreview(dataUrl); // Simpan data URL untuk preview yang tidak akan invalid
+        setResult(null);
+        console.log("✅ File loaded and converted to data URL");
+        console.log("   - Data URL length:", dataUrl.length, "bytes");
+        console.log("   - Data URL valid:", dataUrl.startsWith("data:image/"));
+      };
+      reader.onerror = (error) => {
+        console.error("❌ Error reading file:", error);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -411,8 +519,11 @@ function App() {
                 const formData = new FormData();
                 formData.append("img1", cachedDbBlobs[emp.id], "database.jpg");
                 formData.append("img2", blob, "camera.jpg");
+                // Tambahkan custom threshold yang lebih toleran (default Facenet512 cosine: 0.3 -> lebih toleran: 0.5)
+                formData.append("threshold", "0.5");
+                formData.append("enforce_detection", "false");
 
-                console.log("50% - Mengirim ke server...");
+                console.log("50% - Mengirim ke server dengan threshold=0.5, enforce_detection=false");
                 
                 const verifyResponse = await fetch("http://localhost:5000/verify", {
                   method: "POST",
@@ -425,13 +536,15 @@ function App() {
 
                 const verifyData = await verifyResponse.json();
                 const distance = verifyData.distance || Infinity;
+                const verified = verifyData.verified || false;
 
-                console.log(`75% - ${emp.name}: distance=${distance.toFixed(2)}, verified=${verifyData.verified}`);
+                console.log(`75% - ${emp.name}: distance=${distance.toFixed(2)}, verified=${verified}`);
 
-                // Track best match (lowest distance)
-                if (distance < bestDistance) {
+                // ⚠️ PENTING: HANYA track sebagai bestMatch jika verified === true
+                if (verified && distance < bestDistance) {
                   bestDistance = distance;
                   bestMatch = { employee: emp, verifyData };
+                  console.log(`   ✅ Valid match found! Updated bestMatch to ${emp.name}`);
                 }
               }
 
@@ -439,7 +552,6 @@ function App() {
               if (bestMatch && bestMatch.verifyData.verified) {
                 console.log("100% - Match found!");
                 const employee = bestMatch.employee;
-                const previewData = canvasRef.current.toDataURL();
 
                 const attendanceEntry = {
                   id: `${employee.id}_${Date.now()}`,
@@ -452,20 +564,27 @@ function App() {
                   status: "✓ Terverifikasi",
                   match: true,
                   distance: bestMatch.verifyData.distance?.toFixed(2) || "N/A",
-                  attendancePhoto: previewData,
-                  databasePhoto: employee.photo,
+                  // NOTE: Photos stored IN-MEMORY ONLY (attendancePhotosRef) to avoid localStorage quota exceeded
+                  // DO NOT add attendancePhoto or databasePhoto here
                 };
 
-                // Store photos IN-MEMORY
+                // Store photos IN-MEMORY ONLY (not in localStorage to avoid quota issues)
                 attendancePhotosRef.current[attendanceEntry.id] = {
                   attendancePhoto: previewData,
                   databasePhoto: employee.photo,
                 };
 
-                setResult(attendanceEntry);
+                // Create entry with photos for immediate display
+                const resultWithPhotos = {
+                  ...attendanceEntry,
+                  attendancePhoto: previewData,
+                  databasePhoto: employee.photo,
+                };
+
+                setResult(resultWithPhotos);
                 const newLog = [attendanceEntry, ...attendanceLog.slice(0, 49)];
                 setAttendanceLog(newLog);
-                localStorage.setItem("attendanceLog", JSON.stringify(newLog));
+                // No direct localStorage.setItem - let useEffect handle it consistently with photo stripping
 
                 console.log("✅ Attendance record saved:", employee.name);
               } else {
@@ -556,8 +675,11 @@ function App() {
                             const formData = new FormData();
                             formData.append("img1", cachedDbBlobs[emp.id], "database.jpg");
                             formData.append("img2", blob, "camera.jpg");
+                            // Tambahkan custom threshold yang lebih toleran (default Facenet512 cosine: 0.3 -> lebih toleran: 0.5)
+                            formData.append("threshold", "0.5");
+                            formData.append("enforce_detection", "false");
 
-                            console.log("50% - Mengirim ke server...");
+                            console.log("50% - Mengirim ke server dengan threshold=0.5, enforce_detection=false");
                             
                             const verifyResponse = await fetch("http://localhost:5000/verify", {
                               method: "POST",
@@ -570,13 +692,15 @@ function App() {
 
                             const verifyData = await verifyResponse.json();
                             const distance = verifyData.distance || Infinity;
+                            const verified = verifyData.verified || false;
 
-                            console.log(`75% - ${emp.name}: distance=${distance.toFixed(2)}, verified=${verifyData.verified}`);
+                            console.log(`75% - ${emp.name}: distance=${distance.toFixed(2)}, verified=${verified}`);
 
-                            // Track best match (lowest distance)
-                            if (distance < retryBestDistance) {
+                            // ⚠️ PENTING: HANYA track sebagai bestMatch jika verified === true
+                            if (verified && distance < retryBestDistance) {
                               retryBestDistance = distance;
                               retryBestMatch = { employee: emp, verifyData };
+                              console.log(`   ✅ Valid match found! Updated retryBestMatch to ${emp.name}`);
                             }
                           }
 
@@ -597,20 +721,27 @@ function App() {
                               status: "✓ Terverifikasi",
                               match: true,
                               distance: retryBestMatch.verifyData.distance?.toFixed(2) || "N/A",
-                              attendancePhoto: previewData,
-                              databasePhoto: employee.photo,
+                              // NOTE: Photos stored IN-MEMORY ONLY (attendancePhotosRef) to avoid localStorage quota exceeded
+                              // DO NOT add attendancePhoto or databasePhoto here
                             };
 
-                            // Store photos IN-MEMORY
+                            // Store photos IN-MEMORY ONLY (not in localStorage to avoid quota issues)
                             attendancePhotosRef.current[attendanceEntry.id] = {
                               attendancePhoto: previewData,
                               databasePhoto: employee.photo,
                             };
 
-                            setResult(attendanceEntry);
+                            // Create entry with photos for immediate display
+                            const resultWithPhotos = {
+                              ...attendanceEntry,
+                              attendancePhoto: previewData,
+                              databasePhoto: employee.photo,
+                            };
+
+                            setResult(resultWithPhotos);
                             const newLog = [attendanceEntry, ...attendanceLog.slice(0, 49)];
                             setAttendanceLog(newLog);
-                            localStorage.setItem("attendanceLog", JSON.stringify(newLog));
+                            // No direct localStorage.setItem - let useEffect handle it consistently with photo stripping
 
                             console.log("✅ Attendance record saved on retry:", employee.name);
                           } else {
@@ -813,8 +944,11 @@ function App() {
         const formData = new FormData();
         formData.append("img1", dbBlob, "employee_photo.jpg");
         formData.append("img2", faceImage, "attendance_photo.jpg");
+        // Tambahkan custom threshold yang lebih toleran
+        formData.append("threshold", "0.5");
+        formData.append("enforce_detection", "false");
 
-        console.log("50% - Mengirim ke server...");
+        console.log("50% - Mengirim ke server dengan threshold=0.5, enforce_detection=false");
         
         const verifyResponse = await fetch("http://localhost:5000/verify", {
           method: "POST",
@@ -827,13 +961,15 @@ function App() {
 
         const data = await verifyResponse.json();
         const distance = data.distance || Infinity;
+        const verified = data.verified || false;
 
-        console.log(`${emp.name}: distance=${distance.toFixed(2)}, verified=${data.verified}`);
+        console.log(`${emp.name}: distance=${distance.toFixed(2)}, verified=${verified}`);
 
-        // Track best match (lowest distance)
-        if (distance < bestDistance) {
+        // ⚠️ PENTING: HANYA track sebagai bestMatch jika verified === true
+        if (verified && distance < bestDistance) {
           bestDistance = distance;
           bestMatch = { employee: emp, verifyData: data };
+          console.log(`   ✅ Valid match found! Updated bestMatch to ${emp.name}`);
         }
       }
 
@@ -842,7 +978,9 @@ function App() {
       // Jika ada match
       if (bestMatch && bestMatch.verifyData.verified) {
         const employee = bestMatch.employee;
+        const recordId = `${employee.id}_${Date.now()}`;
         const attendanceEntry = {
+          id: recordId,
           timestamp: new Date().toLocaleString("id-ID"),
           employee: employee.name,
           department: employee.department,
@@ -851,15 +989,28 @@ function App() {
           status: "✓ Terverifikasi",
           match: true,
           distance: bestMatch.verifyData.distance?.toFixed(2) || "N/A",
+          // NOTE: Photos stored IN-MEMORY ONLY (attendancePhotosRef) to avoid localStorage quota exceeded
+          // DO NOT add attendancePhoto or databasePhoto here
+        };
+
+        // Store photos IN-MEMORY ONLY (not in localStorage to avoid quota issues)
+        attendancePhotosRef.current[recordId] = {
+          attendancePhoto: facePreview,
+          databasePhoto: employee.photo,
+        };
+
+        // Create entry with photos for immediate display
+        const resultWithPhotos = {
+          ...attendanceEntry,
           attendancePhoto: facePreview,
           databasePhoto: employee.photo,
         };
 
         console.log("100% - Verifikasi selesai!");
-        setResult(attendanceEntry);
+        setResult(resultWithPhotos);
         const newLog = [attendanceEntry, ...attendanceLog.slice(0, 49)];
         setAttendanceLog(newLog);
-        localStorage.setItem("attendanceLog", JSON.stringify(newLog));
+        // No direct localStorage.setItem - let useEffect handle it consistently with photo stripping
         console.log("✅ Match found:", employee.name);
       } else {
         // Tidak ada match
@@ -873,13 +1024,21 @@ function App() {
           status: "✗ Tidak Cocok dengan Siapapun",
           match: false,
           distance: bestDistance !== Infinity ? bestDistance.toFixed(2) : "N/A",
+          // NOTE: Photos stored IN-MEMORY ONLY to avoid localStorage quota exceeded
+          // DO NOT add attendancePhoto or databasePhoto here
+        };
+
+        // Create entry with photos for immediate display
+        const resultWithPhotos = {
+          ...noMatchEntry,
           attendancePhoto: facePreview,
           databasePhoto: null,
         };
-        setResult(noMatchEntry);
+
+        setResult(resultWithPhotos);
         const newLog = [noMatchEntry, ...attendanceLog.slice(0, 49)];
         setAttendanceLog(newLog);
-        localStorage.setItem("attendanceLog", JSON.stringify(newLog));
+        // No direct localStorage.setItem - let useEffect handle it consistently with photo stripping
         console.log("❌ No match found. Best distance:", bestDistance !== Infinity ? bestDistance.toFixed(2) : "N/A");
       }
     } catch (err) {
@@ -1155,7 +1314,7 @@ function App() {
 
           {/* Camera/File Tabs */}
           <div className="input-tabs">
-            <button
+            {/* <button
               className={`tab-btn ${!cameraMode ? "active" : ""}`}
               onClick={() => {
                 setCameraMode(false);
@@ -1168,7 +1327,7 @@ function App() {
               }}
             >
               📁 Upload Foto
-            </button>
+            </button> */}
             <button 
               className={`tab-btn ${cameraMode ? "active" : ""}`} 
               onClick={() => {
@@ -1239,19 +1398,28 @@ function App() {
           {/* Preview - Only for Upload Mode */}
           {facePreview && !cameraMode && (
             <div className="preview-section">
-              <img src={facePreview} alt="Preview" className="preview-img" />
+              <img 
+                src={facePreview} 
+                alt="Preview" 
+                className="preview-img"
+                onError={(e) => {
+                  console.error("❌ Error loading preview:", e);
+                  e.target.style.display = "none";
+                  e.target.parentElement.innerHTML += "<p style='color: #d32f2f;'>Gagal memuat preview</p>";
+                }}
+              />
             </div>
           )}
 
           {/* Buttons */}
           <div className="action-buttons">
-            <button
+            {/* <button
               className="btn btn-primary"
               onClick={handleVerify}
               disabled={loading || !faceImage}
             >
               {loading ? "⏳ Memproses..." : "✓ Verifikasi Wajah"}
-            </button>
+            </button> */}
             <button className="btn btn-secondary" onClick={() => {
               // Hanya clear input, tidak clear result
               setFaceImage(null);
@@ -1353,6 +1521,10 @@ function App() {
                 <img 
                   src={result.attendancePhoto} 
                   alt="Captured" 
+                  onError={(e) => {
+                    console.error("❌ Error loading attendance photo:", e);
+                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext x='50' y='50' text-anchor='middle' dy='.3em' fill='%23999'%3EImage Error%3C/text%3E%3C/svg%3E";
+                  }}
                   style={{ 
                     maxWidth: "100%", 
                     maxHeight: "300px",
@@ -1579,7 +1751,15 @@ function App() {
             <div className="comparison-photo">
               <h4>📸 Foto Database (Referensi)</h4>
               {photos.databasePhoto ? (
-                <img src={photos.databasePhoto} alt="Database" className="comparison-image" />
+                <img 
+                  src={photos.databasePhoto} 
+                  alt="Database" 
+                  className="comparison-image"
+                  onError={(e) => {
+                    console.error("❌ Error loading database photo:", e);
+                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f0f0f0' width='200' height='200'/%3E%3Ctext x='100' y='100' text-anchor='middle' dy='.3em' fill='%23999'%3EImage Error%3C/text%3E%3C/svg%3E";
+                  }}
+                />
               ) : (
                 <div style={{ padding: 40, textAlign: "center", color: "#999" }}>Foto tidak tersedia</div>
               )}
@@ -1588,7 +1768,15 @@ function App() {
             <div className="comparison-photo">
               <h4>📷 Foto Absensi (Upload/Kamera)</h4>
               {photos.attendancePhoto ? (
-                <img src={photos.attendancePhoto} alt="Attendance" className="comparison-image" />
+                <img 
+                  src={photos.attendancePhoto} 
+                  alt="Attendance" 
+                  className="comparison-image"
+                  onError={(e) => {
+                    console.error("❌ Error loading attendance photo:", e);
+                    e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f0f0f0' width='200' height='200'/%3E%3Ctext x='100' y='100' text-anchor='middle' dy='.3em' fill='%23999'%3EImage Error%3C/text%3E%3C/svg%3E";
+                  }}
+                />
               ) : (
                 <div style={{ padding: 40, textAlign: "center", color: "#999" }}>Foto tidak tersedia</div>
               )}
