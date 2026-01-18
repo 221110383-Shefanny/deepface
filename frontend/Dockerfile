@@ -12,6 +12,10 @@ RUN npm ci --verbose || npm install --verbose
 COPY src ./src
 COPY public ./public
 
+# Inject backend URL at build time
+ARG REACT_APP_BACKEND_URL
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+
 # Build React app
 RUN npm run build
 

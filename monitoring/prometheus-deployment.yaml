@@ -67,7 +67,8 @@ spec:
             - containerPort: 9090
           volumeMounts:
             - name: config
-              mountPath: /etc/prometheus
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml   # mount file tunggal dari ConfigMap
             - name: storage
               mountPath: /prometheus
           resources:
