@@ -3,6 +3,26 @@ import React, { useState, useRef, useEffect } from "react";
 import "./App.css";
 
 function App() {
+  // Theme state
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem("app-theme");
+    return savedTheme || "light";
+  });
+
+  // Toggle theme function
+  const toggleTheme = () => {
+    setTheme((prevTheme) => {
+      const newTheme = prevTheme === "light" ? "dark" : "light";
+      localStorage.setItem("app-theme", newTheme);
+      return newTheme;
+    });
+  };
+
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
   // Navigation state
   const [currentPage, setCurrentPage] = useState("home"); // home, input_employee, attendance, history
 
@@ -1788,6 +1808,11 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Theme Toggle Button */}
+      <button className="theme-toggle" onClick={toggleTheme} title="Toggle Dark/Light Mode">
+        {theme === "light" ? "🌙" : "☀️"}
+      </button>
+
       {currentPage === "home" && renderHome()}
       {currentPage === "input_employee" && renderInputEmployee()}
       {currentPage === "attendance" && renderAttendance()}

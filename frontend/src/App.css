@@ -1,3 +1,62 @@
+/* ============ THEME VARIABLES ============ */
+:root[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --border-color: #e0e0e0;
+  --accent-color: #667eea;
+  --accent-dark: #764ba2;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #2d2d2d;
+  --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #808080;
+  --border-color: #404040;
+  --accent-color: #667eea;
+  --accent-dark: #764ba2;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+/* ============ THEME TOGGLE BUTTON ============ */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -6,14 +65,17 @@
 
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--bg-gradient);
   min-height: 100vh;
+  color: var(--text-primary);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .app-container {
   min-height: 100vh;
   padding: 21px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--bg-gradient);
+  transition: background 0.3s ease;
 }
  
 /* ============ HOME PAGE ============ */
@@ -54,10 +116,10 @@ body {
 }
 
 .menu-card {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 15px;
   padding: 40px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow);
   transition: all 0.3s ease;
   cursor: pointer;
   text-align: center;
@@ -66,7 +128,7 @@ body {
 
 .menu-card:hover {
   transform: translateY(-10px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .menu-icon {
@@ -76,13 +138,13 @@ body {
 }
 
 .menu-card h3 {
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.8rem;
   margin-bottom: 15px;
 }
 
 .menu-card p {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 1.05rem;
   margin-bottom: 25px;
   line-height: 1.6;
@@ -177,18 +239,19 @@ body {
 }
 
 .panel {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 15px;
   padding: 30px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
   animation: slideUp 0.6s ease-out;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 .panel h2 {
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 20px;
   font-size: 1.5rem;
-  border-bottom: 3px solid #667eea;
+  border-bottom: 3px solid var(--accent-color);
   padding-bottom: 10px;
 }
 
@@ -200,7 +263,7 @@ body {
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: #555;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -208,43 +271,46 @@ body {
 .form-input {
   width: 100%;
   padding: 12px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.3s ease;
   font-family: inherit;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .form-input:hover {
-  border-color: #667eea;
-  background-color: #f9f9f9;
+  border-color: var(--accent-color);
+  background-color: var(--bg-primary);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .employee-select {
   width: 100%;
   padding: 12px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: #f9f9f9;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .employee-select:hover {
-  border-color: #667eea;
-  background-color: #f5f5ff;
+  border-color: var(--accent-color);
+  background-color: var(--bg-primary);
 }
 
 .employee-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -261,20 +327,20 @@ body {
 .upload-label {
   display: block;
   padding: 30px;
-  border: 2px dashed #667eea;
+  border: 2px dashed var(--accent-color);
   border-radius: 8px;
   text-align: center;
   cursor: pointer;
-  background-color: #f9f9ff;
+  background-color: var(--bg-secondary);
   transition: all 0.3s ease;
-  color: #667eea;
+  color: var(--accent-color);
   font-weight: 600;
 }
 
 .upload-label:hover {
-  background-color: #f0f0ff;
-  border-color: #764ba2;
-  color: #764ba2;
+  background-color: var(--bg-primary);
+  border-color: var(--accent-dark);
+  color: var(--accent-dark);
 }
 
 /* Large file upload for employee form */
@@ -730,7 +796,7 @@ body {
   max-height: 400px;
   overflow-y: auto;
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
 }
 
 .log-table table {
@@ -739,7 +805,7 @@ body {
 }
 
 .log-table thead {
-  background-color: #667eea;
+  background-color: var(--accent-color);
   color: white;
   position: sticky;
   top: 0;
@@ -753,11 +819,12 @@ body {
 
 .log-table td {
   padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 
 .log-table tr:hover {
-  background-color: #f9f9f9;
+  background-color: var(--bg-secondary);
 }
 
 .log-table tr.success-row {
