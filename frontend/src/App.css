@@ -72,15 +72,15 @@ body {
 }
 
 .app-container {
-  min-height: 100vh;
-  padding: 22px;
+  min-height: 101vh;
+  padding: 21px;
   background: var(--bg-gradient);
   transition: background 0.3s ease;
 }
  
 /* ============ HOME PAGE ============ */
 .home-container {
-  min-height: 102vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
